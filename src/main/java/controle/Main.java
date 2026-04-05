@@ -1,54 +1,66 @@
 package controle;
 
-import controle.controller.DispositivoController;
 import controle.controller.RegistroController;
+import controle.exception.DispositivoNaoEncontradoException;
 import controle.model.Dispositivo;
 import controle.model.TipoDispositivo;
+import controle.singleton.GerenciadorDispositivos;
+import org.junit.jupiter.api.*;
 
-/**
- * Ponto de entrada da aplicação — demonstra o uso do sistema de controle remoto.
- */
-public class Main {
+import java.util.Collection;
 
-    public static void main(String[] args) {
+import static org.junit.jupiter.api.Assertions.*;
 
-        RegistroController registro   = new RegistroController();
-        DispositivoController ctrl    = new DispositivoController();
+@DisplayName("RegistroController")
+class RegistroControllerTest {
 
-        // ── Cadastro ──────────────────────────────────────────────────────────
-        registro.cadastrar("tv01",  "Smart TV Sala",     TipoDispositivo.TELEVISAO);
-        registro.cadastrar("ac01",  "Ar-Condicionado",   TipoDispositivo.AR_CONDICIONADO);
-        registro.cadastrar("som01", "Caixa de Som",      TipoDispositivo.SOM);
-        registro.cadastrar("lmp01", "Lampada Escritorio",TipoDispositivo.ILUMINACAO);
+    private RegistroController registro;
 
-        System.out.println("\n=== Dispositivos cadastrados ===");
-        for (Dispositivo d : registro.listarTodos()) {
-            System.out.println("  " + d);
-        }
+    @BeforeEach
+    void setUp() {
+        GerenciadorDispositivos.getInstancia().limpar();
+        registro = new RegistroController();
+    }
 
-        // ── Operações ─────────────────────────────────────────────────────────
-        System.out.println("\n=== Operações ===");
-        ctrl.ligar("tv01");
-        ctrl.ajustarNivel("tv01", 40);
+    @Test
+    @DisplayName("Deve cadastrar dispositivo e retorná-lo")
+    void deveCadastrarDispositivo() {
+        Dispositivo d = registro.cadastrar("som01", "Caixa de Som", TipoDispositivo.SOM);
+        assertNotNull(d);
+        assertEquals("som01",        d.getId());
+        assertEquals("Caixa de Som", d.getNome());
+        assertEquals(TipoDispositivo.SOM, d.getTipo());
+    }
 
-        ctrl.ligar("ac01");
-        ctrl.ajustarNivel("ac01", 22);
+    @Test
+    @DisplayName("Deve listar dispositivos cadastrados")
+    void deveListarDispositivos() {
+        registro.cadastrar("d1", "D1", TipoDispositivo.TELEVISAO);
+        registro.cadastrar("d2", "D2", TipoDispositivo.ILUMINACAO);
+        Collection<Dispositivo> lista = registro.listarTodos();
+        assertEquals(2, lista.size());
+    }
 
-        ctrl.ligar("som01");
-        ctrl.ajustarNivel("som01", 70);
+    @Test
+    @DisplayName("Deve remover dispositivo existente")
+    void deveRemoverDispositivo() {
+        registro.cadastrar("vent01", "Ventilador", TipoDispositivo.VENTILADOR);
+        registro.remover("vent01");
+        assertTrue(registro.listarTodos().isEmpty());
+    }
 
-        ctrl.desligar("ac01");
+    @Test
+    @DisplayName("Deve lançar exceção ao remover dispositivo inexistente")
+    void deveLancarExcecao_RemoverInexistente() {
+        assertThrows(DispositivoNaoEncontradoException.class,
+                () -> registro.remover("naoexiste"));
+    }
 
-        // ── Estado final ──────────────────────────────────────────────────────
-        System.out.println("\n=== Estado Final ===");
-        for (Dispositivo d : registro.listarTodos()) {
-            System.out.println("  " + d);
-        }
-
-        // ── Singleton: mesma instância ────────────────────────────────────────
-        System.out.println("\n=== Verificação Singleton ===");
-        var g1 = controle.singleton.GerenciadorDispositivos.getInstancia();
-        var g2 = controle.singleton.GerenciadorDispositivos.getInstancia();
-        System.out.println("g1 == g2 ? " + (g1 == g2));
+    @Test
+    @DisplayName("Dispositivo deve iniciar desligado e nível zero")
+    void deveIniciarDesligado() {
+        Dispositivo d = registro.cadastrar("lmp01", "Lâmpada", TipoDispositivo.ILUMINACAO);
+        assertFalse(d.isLigado());
+        assertEquals(0, d.getNivel());
     }
 }
